@@ -20,11 +20,5 @@
   "env": {
     "PYTHONUNBUFFERED": "1",
     "ENVIRONMENT": "vercel"
-  },
-  "envs": {
-    "production": {
-      "TTS_API_KEY": "@tts_api_key",
-      "CACHE_DURATION": "7200"
-    }
   }
 }
