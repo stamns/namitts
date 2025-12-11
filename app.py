@@ -2,7 +2,6 @@
 from flask import Flask, request, Response, jsonify, render_template_string
 from flask_cors import CORS
 from nano_tts import NanoAITTS
-from text_processor import TextProcessor
 import threading
 import time
 import os
@@ -53,12 +52,10 @@ try:
     tts_engine = NanoAITTS()
     logger.info("TTS 引擎初始化完毕。")
     model_cache = ModelCache(tts_engine)
-    text_processor = TextProcessor(max_chunk_length=200)
 except Exception as e:
     logger.critical(f"TTS 引擎初始化失败: {str(e)}", exc_info=True)
     tts_engine = None
     model_cache = None
-    text_processor = None
 # HTML模板（完整前端界面）
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="zh-CN">

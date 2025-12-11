@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "name": "${VERCEL_PROJECT_NAME}",
+  "name": "nanoai-tts",
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python",
-      "config": { "maxLambdaSize": "15mb" }
+      "use": "@vercel/python@3.0.0",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.11"
+      }
     }
   ],
   "routes": [
@@ -15,7 +18,13 @@
     }
   ],
   "env": {
-    "TTS_API_KEY": "${TTS_API_KEY}",
-    "CACHE_DURATION": "${CACHE_DURATION:-7200}"
+    "PYTHONUNBUFFERED": "1",
+    "ENVIRONMENT": "vercel"
+  },
+  "envs": {
+    "production": {
+      "TTS_API_KEY": "@tts_api_key",
+      "CACHE_DURATION": "7200"
+    }
   }
 }
