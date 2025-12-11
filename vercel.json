@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "name": "${VERCEL_PROJECT_NAME}",
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "15mb" }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "app.py"
+    }
+  ],
+  "env": {
+    "TTS_API_KEY": "${TTS_API_KEY}",
+    "CACHE_DURATION": "${CACHE_DURATION:-7200}"
+  }
+}

@@ -1,0 +1,13 @@
+# wrangler.toml - Cloudflare Workers配置
+name = "${CF_PROJECT_NAME}"
+main = "index.py"
+compatibility_date = "2025-12-10"
+compatibility_flags = ["python_workers"]
+[build]
+command = "pip install -r requirements.txt -t ."
+[vars]
+TTS_API_KEY = "${TTS_API_KEY}"
+CACHE_DURATION = "${CACHE_DURATION:-7200}"
+[env.production]
+account_id = "${CF_ACCOUNT_ID}"
+zone_id = "${CF_ZONE_ID}"
