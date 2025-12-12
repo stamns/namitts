@@ -46,7 +46,6 @@ class ModelCache:
 # --- 初始化 ---
 app = Flask(__name__)
 CORS(app)
-limiter = init_limiter(app)  # 初始化限流
 try:
     logger.info("正在初始化 TTS 引擎...")
     tts_engine = NanoAITTS()
@@ -980,6 +979,10 @@ def health_check():
     else:
         logger.error("健康检查失败: TTS引擎未初始化")
         return jsonify({"status": "error", "message": "TTS engine not initialized"}), 503
+
+# 初始化限流器（必须在所有路由定义之后）
+limiter = init_limiter(app)
+
 # --- 启动服务 ---
 if __name__ == '__main__':
     if tts_engine:

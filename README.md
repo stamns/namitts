@@ -55,7 +55,13 @@ docker-compose down
 
 ### Vercel部署
 
+✅ **已修复**: Vercel 部署问题已在 v1.0 中完全解决  
 👉 详见 [VERCEL-DEPLOYMENT.md](./VERCEL-DEPLOYMENT.md)
+
+**重要文档**:
+- [环境变量配置指南](./VERCEL-ENVIRONMENT-SETUP.md) - 必读！
+- [部署就绪检查清单](./DEPLOYMENT-READY-CHECKLIST.md) - 部署前检查
+- [深度调试报告](./VERCEL-DEBUG-REPORT.md) - 问题诊断和修复详情
 
 ## 📚 API 文档
 

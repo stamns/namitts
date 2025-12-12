@@ -6,7 +6,7 @@ load_dotenv()
 # 初始化认证器（使用Bearer Token）
 auth = HTTPTokenAuth(scheme='Bearer')
 # 从环境变量或数据库加载合法API密钥（支持多密钥）
-VALID_API_KEYS = set(os.getenv("TTS_API_KEY").split(","))  # 支持逗号分隔多密钥
+VALID_API_KEYS = set(os.getenv("TTS_API_KEY", "sk-nanoai-default-key").split(","))  # 支持逗号分隔多密钥
 @auth.verify_token
 def verify_token(token):
     """验证API密钥"""
