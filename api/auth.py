@@ -1,6 +1,5 @@
 # api/auth.py - API认证模块
 from flask_httpauth import HTTPTokenAuth
-from werkzeug.security import safe_str_cmp
 import os
 from dotenv import load_dotenv
 load_dotenv()
