@@ -19,7 +19,7 @@ class NanoAITTS:
         self.voices = {}
         self.logger = logging.getLogger('NanoAITTS')
         self.cache_dir = os.getenv('CACHE_DIR', 'cache')
-        self._ensure_cache_dir()
+        self.cache_enabled = self._ensure_cache_dir()
         self.load_voices()
     
     def _ensure_cache_dir(self):
@@ -27,8 +27,10 @@ class NanoAITTS:
             if not os.path.exists(self.cache_dir):
                 os.makedirs(self.cache_dir, exist_ok=True)
                 self.logger.info(f"创建缓存目录: {self.cache_dir}")
-        except Exception as e:
-            self.logger.error(f"创建缓存目录失败: {str(e)}", exc_info=True)
+            return True
+        except (OSError, IOError) as e:
+            self.logger.warning(f"无法创建缓存目录: {str(e)}，缓存功能已禁用")
+            return False
     
     def md5(self, msg):
         return hashlib.md5(msg.encode('utf-8')).hexdigest()
@@ -131,7 +133,8 @@ class NanoAITTS:
         filename = os.path.join(self.cache_dir, 'robots.json')
         
         try:
-            if os.path.exists(filename):
+            # 尝试从缓存文件加载（仅在缓存可用时）
+            if self.cache_enabled and os.path.exists(filename):
                 self.logger.info(f"从缓存文件加载声音列表: {filename}")
                 with open(filename, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -140,12 +143,14 @@ class NanoAITTS:
                 response_text = self.http_get('https://bot.n.cn/api/robot/platform', self.get_headers())
                 data = json.loads(response_text)
                 
-                try:
-                    with open(filename, 'w', encoding='utf-8') as f:
-                        json.dump(data, f, ensure_ascii=False, indent=2)
-                    self.logger.info(f"声音列表已缓存到: {filename}")
-                except Exception as e:
-                    self.logger.warning(f"保存缓存文件失败: {str(e)}")
+                # 尝试保存到缓存（仅在缓存可用时）
+                if self.cache_enabled:
+                    try:
+                        with open(filename, 'w', encoding='utf-8') as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        self.logger.info(f"声音列表已缓存到: {filename}")
+                    except Exception as e:
+                        self.logger.warning(f"保存缓存文件失败: {str(e)}")
             
             self.voices.clear()
             if 'data' in data and 'list' in data['data']:
