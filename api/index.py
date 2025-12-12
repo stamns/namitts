@@ -48,7 +48,6 @@ class ModelCache:
 
 app = Flask(__name__)
 CORS(app)
-limiter = init_limiter(app)
 
 try:
     logger.info("正在初始化 TTS 引擎...")
@@ -851,5 +850,8 @@ def health_check():
     else:
         logger.error("健康检查失败: TTS引擎未初始化")
         return jsonify({"status": "error", "message": "TTS engine not initialized"}), 503
+
+# 初始化限流器（必须在所有路由定义之后）
+limiter = init_limiter(app)
 
 handler = app.wsgi_app
