@@ -965,11 +965,20 @@ def health_check():
     if tts_engine and model_cache:
         model_count = len(model_cache.get_models())
         logger.info(f"健康检查: 服务正常，模型数量: {model_count}")
+        
+        # 添加时间同步诊断信息
+        time_info = {
+            "local_time_utc": str(datetime.utcnow()),
+            "time_offset": getattr(tts_engine, 'time_offset', 0),
+            "iso_timestamp": tts_engine.get_iso8601_time()
+        }
+        
         return jsonify({
             "status": "ok", 
             "models_in_cache": model_count,
             "timestamp": int(time.time()),
-            "version": "1.0.0",
+            "version": "1.2.0",
+            "time_diagnosis": time_info,
             "checks": {
                 "tts_engine": "healthy",
                 "cache": f"healthy ({model_count} models)",

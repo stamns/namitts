@@ -5,6 +5,7 @@
   "env": {
     "PYTHONUNBUFFERED": "1",
     "ENVIRONMENT": "vercel",
+    "TIME_SYNC_ENABLED": "true",
     "CACHE_DURATION": "7200",
     "DEBUG": "false"
   },

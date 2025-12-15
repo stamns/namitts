@@ -5,7 +5,7 @@ import hashlib
 import json
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import time
 class NanoAITTS:
@@ -20,7 +20,47 @@ class NanoAITTS:
         self.logger = logging.getLogger('NanoAITTS')
         self.cache_dir = os.getenv('CACHE_DIR', 'cache')
         self.cache_enabled = self._ensure_cache_dir()
+        self.time_offset = 0
+        
+        # 检查是否启用时间同步 (默认启用)
+        self.time_sync_enabled = os.getenv('TIME_SYNC_ENABLED', 'true').lower() == 'true'
+        if self.time_sync_enabled:
+            self.check_time_sync()
+            
         self.load_voices()
+    
+    def check_time_sync(self):
+        """检查并校准服务器时间偏差"""
+        try:
+            url = 'https://bot.n.cn'
+            req = urllib.request.Request(url, method='HEAD')
+            start_time = time.time()
+            with urllib.request.urlopen(req, timeout=5) as response:
+                end_time = time.time()
+                date_header = response.headers.get('Date')
+                if date_header:
+                    # 解析服务器时间 (GMT)
+                    # 格式: Fri, 13 Dec 2024 08:32:00 GMT
+                    server_time = datetime.strptime(date_header, '%a, %d %b %Y %H:%M:%S GMT')
+                    local_time = datetime.utcnow()
+                    
+                    # 计算往返延迟的一半作为传输时间
+                    rtt = end_time - start_time
+                    adjusted_server_time = server_time + timedelta(seconds=rtt/2)
+                    
+                    # 计算偏差
+                    drift = (adjusted_server_time - local_time).total_seconds()
+                    
+                    self.logger.info(f"时间同步检查 - 服务器: {date_header}, 本地(UTC): {local_time}, 偏差: {drift:.2f}秒")
+                    
+                    # 如果偏差超过30秒，进行修正
+                    if abs(drift) > 30:
+                        self.time_offset = drift
+                        self.logger.warning(f"检测到严重时间偏差 ({drift:.2f}秒), 已启用自动修正")
+                    else:
+                        self.time_offset = 0
+        except Exception as e:
+            self.logger.warning(f"时间同步检查失败: {e}")
     
     def _ensure_cache_dir(self):
         try:
@@ -75,8 +115,11 @@ class NanoAITTS:
         return formatted_rt
     
     def get_iso8601_time(self):
-        now = datetime.now()
-        return now.strftime('%Y-%m-%dT%H:%M:%S+08:00')
+        # 基础时间: UTC现在 + 偏差
+        utc_now = datetime.utcnow() + timedelta(seconds=self.time_offset)
+        # 转换为北京时间 (UTC+8)
+        cst_now = utc_now + timedelta(hours=8)
+        return cst_now.strftime('%Y-%m-%dT%H:%M:%S+08:00')
     
     def get_headers(self):
         device = "Web"
@@ -182,9 +225,6 @@ class NanoAITTS:
         
         url = f'https://bot.n.cn/api/tts/v1?roleid={voice}&speed={speed}&pitch={pitch}'
         
-        headers = self.get_headers()
-        headers['Content-Type'] = 'application/x-www-form-urlencoded'
-        
         max_length = 1000
         if len(text) > max_length:
             self.logger.warning(f"文本过长（最大支持{max_length}字符），将被截断")
@@ -192,16 +232,51 @@ class NanoAITTS:
         
         form_data = f'&text={urllib.parse.quote(text)}&audio_type=mp3&format=stream'
         
-        try:
-            self.logger.info(f"开始生成音频 - 模型: {voice}, 文本长度: {len(text)}, 语速: {speed}, 音调: {pitch}")
-            audio_data = self.http_post(url, form_data, headers)
-            
-            if not audio_data or len(audio_data) < 100:
-                raise Exception("返回的音频数据无效")
-            
-            self.logger.info(f"音频生成成功 - 数据大小: {len(audio_data)} 字节")
-            return audio_data
-            
-        except Exception as e:
-            self.logger.error(f"获取音频失败: {str(e)}", exc_info=True)
-            raise
+        # 重试机制
+        max_retries = 2
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                # 每次重试重新生成头部（包含最新时间戳）
+                headers = self.get_headers()
+                headers['Content-Type'] = 'application/x-www-form-urlencoded'
+                
+                self.logger.info(f"开始生成音频 (尝试 {attempt+1}/{max_retries}) - 模型: {voice}, 文本长度: {len(text)}, 语速: {speed}, 音调: {pitch}")
+                audio_data = self.http_post(url, form_data, headers)
+                
+                # 检查是否为JSON错误响应
+                if len(audio_data) < 1000:
+                    try:
+                        resp_json = json.loads(audio_data)
+                        if isinstance(resp_json, dict) and resp_json.get('code') == 110023:
+                            msg = resp_json.get('msg', 'Unknown error')
+                            self.logger.warning(f"API返回错误 110023: {msg}")
+                            raise Exception(f"API Error 110023: {msg}")
+                    except json.JSONDecodeError:
+                        pass
+
+                if not audio_data or len(audio_data) < 100:
+                    raise Exception("返回的音频数据无效")
+                
+                self.logger.info(f"音频生成成功 - 数据大小: {len(audio_data)} 字节")
+                return audio_data
+                
+            except Exception as e:
+                last_exception = e
+                is_time_error = "110023" in str(e)
+                
+                if is_time_error:
+                    self.logger.warning(f"检测到设备时间异常 (110023)，正在进行时间诊断...")
+                    if self.time_sync_enabled:
+                        self.check_time_sync()
+                    
+                    if attempt < max_retries - 1:
+                        self.logger.info("等待2秒后重试...")
+                        time.sleep(2)
+                        continue
+                
+                # 如果不是时间错误或重试次数用尽
+                if attempt == max_retries - 1:
+                    self.logger.error(f"获取音频失败: {str(e)}", exc_info=True)
+                    raise last_exception
